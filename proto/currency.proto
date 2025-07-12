@@ -1,0 +1,20 @@
+syntax = "propto3";
+
+package currencyexchange;
+option go_package = "github.com/ruslan-codebase/brics-currency-exchange/proto";
+
+service CurrencyService {
+  rpc Convert(ConvertRequest) returns (ConvertResponse) {};
+}
+
+message ConvertRequest {
+  string from_currency = 1; // ISO 4217 code
+  string to_currency = 2; // ISO 4217 code
+  double amount = 3;
+}
+
+message ConvertResponse {
+  double converted_amount = 1;
+  double exchange_rate = 2;
+  double service_fee = 3;
+}
