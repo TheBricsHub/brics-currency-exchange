@@ -3,6 +3,7 @@ module github.com/ruslan-codebase/brics-currency-exchange
 go 1.24
 
 require (
+	github.com/google/uuid v1.6.0
 	github.com/nats-io/nats.go v1.43.0
 	google.golang.org/grpc v1.73.0
 	google.golang.org/protobuf v1.36.6

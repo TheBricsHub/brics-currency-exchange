@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
 	pb "github.com/ruslan-codebase/brics-currency-exchange/proto"
 	"google.golang.org/grpc"
@@ -15,7 +16,7 @@ import (
 
 type server struct {
 	pb.UnimplementedCurrencyServiceServer
-	natsConn *nats.Conn
+	js nats.JetStreamContext
 }
 
 // BRICS exchange rates (simulated)
@@ -45,9 +46,31 @@ func (s *server) Convert(ctx context.Context, req *pb.ConvertRequest) (*pb.Conve
 	converted := (amount - fee) * rate
 
 	// Publish event
-	event := fmt.Sprintf("Converted %.2f %s to %.2f %s",
-		req.Amount, req.FromCurrency, converted, req.ToCurrency)
-	s.natsConn.Publish("transactions.currency", []byte(event))
+	event := fmt.Sprintf(`{
+		"timestamp": "%s",
+		"from": "%s",
+		"to": "%s",
+		"amount": %.2f,
+		"converted": %.2f,
+		"rate": %.4f,
+		"fee": %.2f
+	}`,
+		time.Now().Format(time.RFC3339),
+		req.FromCurrency,
+		req.ToCurrency,
+		req.Amount,
+		converted,
+		rate,
+		fee,
+	)
+	_, err := s.js.Publish("transactions.currency",
+		[]byte(event),
+		nats.MsgId(uuid.NewString()),
+		nats.ExpectStream("TRANSACTIONS"),
+	)
+	if err != nil {
+		log.Printf("Failed to publish event: %v", err)
+	}
 
 	return &pb.ConvertResponse{
 		ConvertedAmount: converted,
@@ -56,23 +79,48 @@ func (s *server) Convert(ctx context.Context, req *pb.ConvertRequest) (*pb.Conve
 	}, nil
 }
 
+func createStream(js nats.JetStreamContext) error {
+	// if already exists
+	_, err := js.StreamInfo("TRANSACTIONS")
+	if err == nil {
+		return nil
+	}
+
+	_, err = js.AddStream(&nats.StreamConfig{
+		Name:        "TRANSACTIONS",
+		Description: "BRICS currency conversion events",
+		Subjects:    []string{"transactions.>"},
+		Retention:   nats.InterestPolicy,
+		MaxAge:      24 * time.Hour,
+		Storage:     nats.FileStorage,
+		Replicas:    1,
+	})
+
+	return err
+}
+
 func main() {
 	uri := os.Getenv("NATS_URL")
-	var nc *nats.Conn
-	for i := 0; i < 5; i++ {
-		natsConn, err := nats.Connect(uri)
-		if err == nil {
-			nc = natsConn
-			break
-		}
-		fmt.Println("Waiting before connecting to NATS at:", uri)
-		time.Sleep(1 * time.Second)
+
+	nc, err := nats.Connect(uri,
+		nats.MaxReconnects(5),
+		nats.ReconnectWait(2*time.Second),
+		nats.Timeout(10*time.Second),
+	)
+	if err != nil {
+		log.Fatalf("NATS connection failed: %v", err)
 	}
-	// nc, err := nats.Connect(os.Getenv("NATS_URL"))
-	// if err != nil {
-	// 	log.Fatalf("NATS connection failed: %v", err)
-	// }
 	defer nc.Close()
+
+	js, err := nc.JetStream()
+	if err != nil {
+		log.Fatalf("JetStream init failed: %v", err)
+	}
+
+	err = createStream(js)
+	if err != nil {
+		log.Fatalf("Stream creation failed: %v", err)
+	}
 
 	lis, err := net.Listen("tcp", ":50051")
 	if err != nil {
@@ -80,7 +128,7 @@ func main() {
 	}
 
 	s := grpc.NewServer()
-	pb.RegisterCurrencyServiceServer(s, &server{natsConn: nc})
+	pb.RegisterCurrencyServiceServer(s, &server{js: js})
 
 	log.Println("Server started on port 50051")
 	log.Println("Supported BRICS currencies: RUB, CNY, INR, BRL, ZAR")
