@@ -1,4 +1,4 @@
-syntax = "propto3";
+syntax = "proto3";
 
 package currencyexchange;
 option go_package = "github.com/ruslan-codebase/brics-currency-exchange/proto";

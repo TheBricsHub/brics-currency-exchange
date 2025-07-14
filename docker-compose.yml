@@ -1,0 +1,38 @@
+
+services:
+  nats:
+    image: nats:latest
+    container_name: brics-nats
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    # healthcheck:
+    #   test: ["CMD", "nats", "server", "check", "--server", "brics_nats"]
+    #   interval: 5s
+    #   timeout: 10s
+    #   retries: 10
+    #   start_period: 20s
+    command: --name brics_nats --debug -DV
+    volumes:
+      - ./nats:/data
+
+  currency-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "50051:50051"
+    depends_on:
+      - nats
+        # condition: service_healthy
+    environment:
+      - NATS_URL=nats://brics-nats:4222
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=:50051"]
+      interval: 10s
+      timeout: 5s
+
+networks:
+  default:
+    name: brics-network
+    driver: bridge

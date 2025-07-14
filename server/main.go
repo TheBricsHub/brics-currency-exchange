@@ -2,15 +2,20 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net"
+	"os"
+	"time"
 
+	"github.com/nats-io/nats.go"
 	pb "github.com/ruslan-codebase/brics-currency-exchange/proto"
 	"google.golang.org/grpc"
 )
 
 type server struct {
 	pb.UnimplementedCurrencyServiceServer
+	natsConn *nats.Conn
 }
 
 // BRICS exchange rates (simulated)
@@ -39,6 +44,11 @@ func (s *server) Convert(ctx context.Context, req *pb.ConvertRequest) (*pb.Conve
 	fee := amount * 0.001 // 0.1% service fee
 	converted := (amount - fee) * rate
 
+	// Publish event
+	event := fmt.Sprintf("Converted %.2f %s to %.2f %s",
+		req.Amount, req.FromCurrency, converted, req.ToCurrency)
+	s.natsConn.Publish("transactions.currency", []byte(event))
+
 	return &pb.ConvertResponse{
 		ConvertedAmount: converted,
 		ExchangeRate:    rate,
@@ -47,13 +57,30 @@ func (s *server) Convert(ctx context.Context, req *pb.ConvertRequest) (*pb.Conve
 }
 
 func main() {
+	uri := os.Getenv("NATS_URL")
+	var nc *nats.Conn
+	for i := 0; i < 5; i++ {
+		natsConn, err := nats.Connect(uri)
+		if err == nil {
+			nc = natsConn
+			break
+		}
+		fmt.Println("Waiting before connecting to NATS at:", uri)
+		time.Sleep(1 * time.Second)
+	}
+	// nc, err := nats.Connect(os.Getenv("NATS_URL"))
+	// if err != nil {
+	// 	log.Fatalf("NATS connection failed: %v", err)
+	// }
+	defer nc.Close()
+
 	lis, err := net.Listen("tcp", ":50051")
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
 	s := grpc.NewServer()
-	pb.RegisterCurrencyServiceServer(s, &server{})
+	pb.RegisterCurrencyServiceServer(s, &server{natsConn: nc})
 
 	log.Println("Server started on port 50051")
 	log.Println("Supported BRICS currencies: RUB, CNY, INR, BRL, ZAR")
