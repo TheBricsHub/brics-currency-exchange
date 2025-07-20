@@ -12,7 +12,7 @@ services:
     #   timeout: 10s
     #   retries: 10
     #   start_period: 20s
-    command: --name brics_nats --debug -DV -js
+    command: --name brics_nats --debug -js
     volumes:
       - ./nats:/data
 
@@ -27,10 +27,11 @@ services:
         # condition: service_healthy
     environment:
       - NATS_URL=nats://brics-nats:4222
-    healthcheck:
-      test: ["CMD", "grpc_health_probe", "-addr=:50051"]
-      interval: 10s
-      timeout: 5s
+      - GOGC=off
+    # healthcheck:
+    #   test: ["CMD", "grpc_health_probe", "-addr=:50051"]
+    #   interval: 10s
+    #   timeout: 5s
 
 networks:
   default:

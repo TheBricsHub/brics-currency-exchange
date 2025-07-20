@@ -5,16 +5,32 @@ option go_package = "github.com/ruslan-codebase/brics-currency-exchange/proto";
 
 service CurrencyService {
   rpc Convert(ConvertRequest) returns (ConvertResponse) {};
+  rpc UpdateRates(UpdateRatesRequest) returns (UpdateRatesResponse);
 }
 
 message ConvertRequest {
   string from_currency = 1; // ISO 4217 code
   string to_currency = 2; // ISO 4217 code
   double amount = 3;
+  string idempotency_key = 4;
 }
 
 message ConvertResponse {
   double converted_amount = 1;
   double exchange_rate = 2;
   double service_fee = 3;
+}
+
+message RateUpdate {
+  string base_currency = 1;
+  string target_currency = 2;
+  double rate = 3;
+}
+
+message UpdateRatesRequest {
+  repeated RateUpdate updates = 1;
+}
+
+message UpdateRatesResponse {
+  bool success = 1;
 }

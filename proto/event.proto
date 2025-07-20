@@ -1,0 +1,13 @@
+syntax = "proto3";
+package currencyexchange;
+
+option go_package = "github.com/ruslan-codebase/brics-currency-exchange/proto";
+
+message Conversion {
+  fixed64 ts = 1;
+  string from = 2;
+  string to = 3;
+  double converted_amount = 4;
+  double exchange_rate = 5;
+  double service_fee = 6;
+}

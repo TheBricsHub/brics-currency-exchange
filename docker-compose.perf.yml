@@ -1,0 +1,19 @@
+services:
+  perf-test:
+    image: golang:1.24-alpine
+    working_dir: /app
+    volumes:
+      - .:/app
+    depends_on:
+      - currency-service
+    environment:
+      - NATS_URL=nats://brics-nats:4222
+      - GRPC_ADDR=currency-service:50051
+      - GOGC=off
+    command: >
+      sh -c "
+        go mod download &&
+        go test -tags=performance -v -run=TestPerfConversionRPS ./server
+      "
+    networks:
+      - default
