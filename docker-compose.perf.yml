@@ -13,7 +13,7 @@ services:
     command: >
       sh -c "
         go mod download &&
-        go test -tags=performance -v -run=TestPerfConversionRPS ./server
+        go test -tags=performance -v -run=TestPerfConversionRPS ./services/exchange/server
       "
     networks:
       - default

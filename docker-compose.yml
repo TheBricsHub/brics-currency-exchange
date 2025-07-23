@@ -18,7 +18,7 @@ services:
 
   currency-service:
     build:
-      context: .
+      context: ./services/exchage
       dockerfile: Dockerfile
     ports:
       - "50051:50051"

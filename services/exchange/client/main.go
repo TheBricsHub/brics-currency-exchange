@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	pb "github.com/ruslan-codebase/brics-currency-exchange/proto"
+	pb "github.com/TheBricsHub/brics-currency-exchange/services/exchange/proto"
 	"google.golang.org/grpc"
 )
 

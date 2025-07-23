@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
+	pb "github.com/TheBricsHub/brics-currency-exchange/services/exchange/proto"
 	"github.com/nats-io/nats.go"
-	pb "github.com/ruslan-codebase/brics-currency-exchange/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
